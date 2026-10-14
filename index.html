@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Study Generator Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d2e;
+      --card: #1e2235;
+      --border: #2e3250;
+      --accent: #6c63ff;
+      --accent2: #00d4aa;
+      --text: #e8eaf0;
+      --muted: #8b90a8;
+      --danger: #ff6b6b;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 20px;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header span { font-size: 0.75rem; color: var(--muted); background: var(--card); border: 1px solid var(--border); padding: 2px 8px; border-radius: 99px; margin-left: 8px; }
+
+    /* ── Layout ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 0;
+      height: calc(100vh - 73px);
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.82rem; color: var(--muted); }
+
+    input[type="text"], textarea, select {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      width: 100%;
+      transition: border-color 0.2s;
+      resize: none;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    textarea { min-height: 80px; }
+
+    .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .tag.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .tag:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── Content area ── */
+    .content { display: flex; flex-direction: column; overflow: hidden; }
+
+    .content-tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+    }
+    .tab {
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .tab-panel { display: none; flex: 1; overflow-y: auto; padding: 24px; }
+    .tab-panel.active { display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── Output card ── */
+    .output-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .output-card-header h3 { font-size: 0.88rem; font-weight: 600; }
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: rgba(108,99,255,0.15);
+      color: var(--accent);
+      border: 1px solid rgba(108,99,255,0.3);
+    }
+    .output-body {
+      padding: 16px;
+      font-size: 0.88rem;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    /* ── Placeholder ── */
+    .placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      text-align: center;
+      padding: 40px;
+    }
+    .placeholder-icon { font-size: 48px; opacity: 0.3; }
+    .placeholder h2 { font-size: 1.1rem; color: var(--text); opacity: 0.5; }
+    .placeholder p { font-size: 0.82rem; max-width: 340px; }
+
+    /* ── Spinner ── */
+    .spinner-wrap {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 60px 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ── */
+    .error-box {
+      background: rgba(255,107,107,0.1);
+      border: 1px solid rgba(255,107,107,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.83rem;
+      color: var(--danger);
+      display: none;
+    }
+
+    /* ── Flashcard grid ── */
+    .flashcard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .flashcard {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .flashcard:hover { border-color: var(--accent); }
+    .flashcard .q { font-size: 0.82rem; font-weight: 600; color: var(--accent2); margin-bottom: 8px; }
+    .flashcard .a { font-size: 0.83rem; line-height: 1.6; color: var(--text); display: none; }
+    .flashcard.flipped .a { display: block; }
+    .flashcard .hint { font-size: 0.7rem; color: var(--muted); margin-top: 8px; }
+
+    /* ── Quiz ── */
+    .quiz-question {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .quiz-question .qnum { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
+    .quiz-question .qtext { font-size: 0.92rem; font-weight: 600; margin-bottom: 14px; line-height: 1.5; }
+    .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+    .quiz-option {
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.84rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--surface);
+    }
+    .quiz-option:hover { border-color: var(--accent); background: rgba(108,99,255,0.08); }
+    .quiz-option.correct { border-color: var(--accent2); background: rgba(0,212,170,0.1); color: var(--accent2); }
+    .quiz-option.wrong { border-color: var(--danger); background: rgba(255,107,107,0.08); color: var(--danger); }
+
+    /* ── Copy btn ── */
+    .copy-btn {
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      main { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); max-height: 380px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🧠</div>
+  <div>
+    <h1>Smart Study Generator <span>Agent</span></h1>
+  </div>
+</header>
+
+<main>
+  <!-- ── Sidebar ── -->
+  <aside>
+    <div>
+      <div class="section-label">📚 Study Topic</div>
+      <div class="form-group">
+        <label>Topic / Subject</label>
+        <input type="text" id="topicInput" placeholder="e.g. Photosynthesis, World War II…" />
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Additional Context (optional)</label>
+        <textarea id="contextInput" placeholder="Paste any text, notes or textbook content here…"></textarea>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">🎯 Output Type</div>
+      <div class="tag-row" id="outputTypes">
+        <span class="tag active" data-type="summary">Summary</span>
+        <span class="tag" data-type="flashcards">Flashcards</span>
+        <span class="tag" data-type="quiz">Quiz</span>
+        <span class="tag" data-type="mindmap">Mind Map</span>
+        <span class="tag" data-type="keypoints">Key Points</span>
+        <span class="tag" data-type="timeline">Timeline</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">⚙️ Settings</div>
+      <div class="form-group">
+        <label>Difficulty Level</label>
+        <select id="difficulty">
+          <option value="beginner">Beginner</option>
+          <option value="intermediate" selected>Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Language</label>
+        <select id="language">
+          <option value="English">English</option>
+          <option value="Spanish">Spanish</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Arabic">Arabic</option>
+          <option value="Chinese">Chinese</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+        ✨ Generate Study Material
+      </button>
+      <button class="btn btn-ghost" onclick="clearAll()">🗑 Clear</button>
+    </div>
+
+    <div id="errorBox" class="error-box"></div>
+  </aside>
+
+  <!-- ── Main Content ── -->
+  <div class="content">
+    <div class="content-tabs" id="tabBar"></div>
+
+    <div id="placeholder" class="placeholder tab-panel active"
+         style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%">
+      <div class="placeholder-icon">📖</div>
+      <h2>Ready to Study Smarter?</h2>
+      <p>Enter a topic on the left, choose an output type, and click <strong>Generate</strong> to create AI-powered study materials instantly.</p>
+    </div>
+
+    <div id="spinnerPanel" class="spinner-wrap">
+      <div class="spinner"></div>
+      <span id="spinnerMsg">Generating your study material…</span>
+    </div>
+
+    <div id="outputArea" style="display:none;flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px"></div>
+  </div>
+</main>
+
+<script>
+  const API_KEY = "AQ.Ab8RN6JdINSr9pX1aZiLLLM45O-k5ZBENgD0ame35_H71JC2lw";
+  // gemini-2.0-flash-lite is the correct v1beta model id for "Gemini Flash Lite"
+  const MODEL   = "gemini-3.5-flash-lite";
+  const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
+
+  let activeType = "summary";
+  let sessions   = {};
+
+  // ── Tag selection ──
+  document.querySelectorAll(".tag").forEach(tag => {
+    tag.addEventListener("click", () => {
+      document.querySelectorAll(".tag").forEach(t => t.classList.remove("active"));
+      tag.classList.add("active");
+      activeType = tag.dataset.type;
+    });
+  });
+
+  // ── Build prompt per type ──
+  function buildPrompt(topic, context, type, difficulty, language) {
+    const ctx  = context.trim() ? `\n\nAdditional context:\n${context}` : "";
+    const base = `Topic: "${topic}"${ctx}\nDifficulty: ${difficulty}\nLanguage: ${language}\n\n`;
+
+    const prompts = {
+      summary:
+        base + `Write a comprehensive and well-structured study summary for the above topic. Include an introduction, key concepts, important details, and a conclusion. Use clear headings and bullet points where helpful. Output in ${language}.`,
+
+      flashcards:
+        base + `Generate exactly 10 flashcard pairs for studying the topic. Format strictly as:\nQ: [question]\nA: [answer]\n\nRepeat this pattern for all 10 cards. Make questions concise and answers detailed but under 3 sentences. Output in ${language}.`,
+
+      quiz:
+        base + `Generate a multiple-choice quiz with exactly 8 questions about the topic. Format strictly as:\n[Q]: [question text]\n[A]: [option A]\n[B]: [option B]\n[C]: [option C]\n[D]: [option D]\n[ANS]: [correct letter]\n\nRepeat for all 8 questions. Output in ${language}.`,
+
+      mindmap:
+        base + `Create a detailed text-based mind map for this topic. Use the following structure:\n🌟 CORE TOPIC\n  ├── Branch 1\n  │   ├── Sub-point 1.1\n  │   └── Sub-point 1.2\n  ├── Branch 2\n  │   ├── Sub-point 2.1\n  │   └── Sub-point 2.2\nContinue with at least 5 main branches and sub-points for each. Output in ${language}.`,
+
+      keypoints:
+        base + `List the 15 most important key points, facts, and concepts someone must know about this topic. Number each point. Be concise and informative. Output in ${language}.`,
+
+      timeline:
+        base + `Create a chronological or logical timeline for this topic. List events/steps/phases in order with dates or sequence numbers. Use the format:\n[1] [Year/Period] — [Event/Development]\nInclude at least 10 entries. Output in ${language}.`
+    };
+
+    return prompts[type] || prompts.summary;
+  }
+
+  // ── Call Gemini API ──
+  async function callGemini(prompt) {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `API error ${res.status}`);
+    }
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+
+  // ── Render helpers ──
+  function renderSummary(text, topic) {
+    return `<div class="output-card">
+      <div class="output-card-header">
+        <h3>📝 Summary — ${escHtml(topic)}</h3>
+        <button class="copy-btn" onclick="copyText(this, this.dataset.raw)" data-raw="${escAttr(text)}">Copy</button>
+      </div>
+      <div class="output-body">${escHtml(text)}</div>
+    </div>`;
+  }
+
+  function renderKeypoints(text, topic) {
+    return `<div class="output-card">
+      <div class="output-card-header">
+        <h3>🎯 Key Points — ${escHtml(topic)}</h3>
+        <button class="copy-btn" onclick="copyText(this, this.dataset.raw)" data-raw="${escAttr(text)}">Copy</button>
+      </div>
+      <div class="output-body">${escHtml(text)}</div>
+    </div>`;
+  }
+
+  function renderMindmap(text, topic) {
+    return `<div class="output-card">
+      <div class="output-card-header">
+        <h3>🗺 Mind Map — ${escHtml(topic)}</h3>
+        <button class="copy-btn" onclick="copyText(this, this.dataset.raw)" data-raw="${escAttr(text)}">Copy</button>
+      </div>
+      <div class="output-body" style="font-family:monospace;font-size:0.82rem">${escHtml(text)}</div>
+    </div>`;
+  }
+
+  function renderTimeline(text, topic) {
+    return `<div class="output-card">
+      <div class="output-card-header">
+        <h3>📅 Timeline — ${escHtml(topic)}</h3>
+        <button class="copy-btn" onclick="copyText(this, this.dataset.raw)" data-raw="${escAttr(text)}">Copy</button>
+      </div>
+      <div class="output-body">${escHtml(text)}</div>
+    </div>`;
+  }
+
+  function renderFlashcards(text, topic) {
+    const pairs = [];
+    const lines = text.split("\n");
+    let currentQ = null;
+    for (const line of lines) {
+      const q = line.match(/^Q:\s*(.+)/i);
+      const a = line.match(/^A:\s*(.+)/i);
+      if (q) currentQ = q[1].trim();
+      else if (a && currentQ) { pairs.push({ q: currentQ, a: a[1].trim() }); currentQ = null; }
+    }
+    if (!pairs.length) return renderSummary(text, topic);
+    const cards = pairs.map((p, i) => `
+      <div class="flashcard" onclick="this.classList.toggle('flipped')">
+        <div class="q">Q${i+1}: ${escHtml(p.q)}</div>
+        <div class="a">💡 ${escHtml(p.a)}</div>
+        <div class="hint">Click to reveal answer</div>
+      </div>`).join("");
+    return `<div>
+      <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <h3 style="font-size:0.92rem">🃏 Flashcards — ${escHtml(topic)} <span class="badge">${pairs.length} cards</span></h3>
+        <span style="font-size:0.75rem;color:var(--muted)">Click any card to reveal answer</span>
+      </div>
+      <div class="flashcard-grid">${cards}</div>
+    </div>`;
+  }
+
+  function renderQuiz(text, topic) {
+    const questions = [];
+    const blocks = text.split(/\n(?=\[Q\]:)/);
+    for (const block of blocks) {
+      const q   = block.match(/\[Q\]:\s*(.+)/)?.[1]?.trim();
+      const a   = block.match(/\[A\]:\s*(.+)/)?.[1]?.trim();
+      const b   = block.match(/\[B\]:\s*(.+)/)?.[1]?.trim();
+      const c   = block.match(/\[C\]:\s*(.+)/)?.[1]?.trim();
+      const d   = block.match(/\[D\]:\s*(.+)/)?.[1]?.trim();
+      const ans = block.match(/\[ANS\]:\s*([A-D])/i)?.[1]?.toUpperCase();
+      if (q && a && b && c && d && ans) questions.push({ q, opts: { A:a, B:b, C:c, D:d }, ans });
+    }
+    if (!questions.length) return renderSummary(text, topic);
+    const qs = questions.map((item, i) => {
+      const opts = Object.entries(item.opts).map(([k, v]) =>
+        `<div class="quiz-option" data-key="${k}" data-ans="${item.ans}" onclick="pickAnswer(this)">${k}. ${escHtml(v)}</div>`
+      ).join("");
+      return `<div class="quiz-question">
+        <div class="qnum">Question ${i+1} of ${questions.length}</div>
+        <div class="qtext">${escHtml(item.q)}</div>
+        <div class="quiz-options">${opts}</div>
+      </div>`;
+    }).join("");
+    return `<div>
+      <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <h3 style="font-size:0.92rem">❓ Quiz — ${escHtml(topic)} <span class="badge">${questions.length} questions</span></h3>
+        <span style="font-size:0.75rem;color:var(--muted)">Click an option to check your answer</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">${qs}</div>
+    </div>`;
+  }
+
+  function pickAnswer(el) {
+    const parent = el.closest(".quiz-options");
+    if (parent.dataset.answered) return;
+    parent.dataset.answered = "1";
+    const correct = el.dataset.ans;
+    parent.querySelectorAll(".quiz-option").forEach(opt => {
+      if (opt.dataset.key === correct) opt.classList.add("correct");
+      else if (opt === el) opt.classList.add("wrong");
+    });
+  }
+
+  function renderOutput(type, text, topic) {
+    const map = {
+      summary: renderSummary, flashcards: renderFlashcards, quiz: renderQuiz,
+      mindmap: renderMindmap, keypoints: renderKeypoints, timeline: renderTimeline
+    };
+    return (map[type] || renderSummary)(text, topic);
+  }
+
+  // ── Tabs ──
+  function typeLabel(t) {
+    const map = {
+      summary:"📝 Summary", flashcards:"🃏 Flashcards", quiz:"❓ Quiz",
+      mindmap:"🗺 Mind Map", keypoints:"🎯 Key Points", timeline:"📅 Timeline"
+    };
+    return map[t] || t;
+  }
+
+  function rebuildTabs() {
+    const bar = document.getElementById("tabBar");
+    bar.innerHTML = Object.keys(sessions).map(t =>
+      `<div class="tab ${t === activeType ? 'active' : ''}" onclick="switchTab('${t}')">${typeLabel(t)}</div>`
+    ).join("");
+  }
+
+  function switchTab(type) {
+    activeType = type;
+    rebuildTabs();
+    showSession(type);
+    document.querySelectorAll(".tag").forEach(t =>
+      t.classList.toggle("active", t.dataset.type === type)
+    );
+  }
+
+  function showSession(type) {
+    if (sessions[type]) {
+      document.getElementById("outputArea").innerHTML = sessions[type].html;
+      showPanel("output");
+    }
+  }
+
+  function showPanel(which) {
+    document.getElementById("placeholder").style.display   = which === "placeholder" ? "flex" : "none";
+    document.getElementById("spinnerPanel").style.display  = which === "spinner"     ? "flex" : "none";
+    document.getElementById("outputArea").style.display    = which === "output"      ? "flex" : "none";
+  }
+
+  // ── Main generate ──
+  async function generate() {
+    const topic      = document.getElementById("topicInput").value.trim();
+    const context    = document.getElementById("contextInput").value;
+    const difficulty = document.getElementById("difficulty").value;
+    const language   = document.getElementById("language").value;
+    const type       = activeType;
+
+    const errBox = document.getElementById("errorBox");
+    errBox.style.display = "none";
+
+    if (!topic) {
+      errBox.textContent = "⚠️ Please enter a topic first.";
+      errBox.style.display = "block";
+      return;
+    }
+
+    const btn = document.getElementById("generateBtn");
+    btn.disabled = true;
+    document.getElementById("spinnerMsg").textContent =
+      `Generating ${typeLabel(type).replace(/[^\w ]/g, "")} for "${topic}"…`;
+    showPanel("spinner");
+
+    try {
+      const prompt = buildPrompt(topic, context, type, difficulty, language);
+      const text   = await callGemini(prompt);
+      if (!text) throw new Error("Empty response from Gemini.");
+      const html = renderOutput(type, text, topic);
+      sessions[type] = { html };
+      rebuildTabs();
+      document.getElementById("outputArea").innerHTML = html;
+      showPanel("output");
+    } catch (e) {
+      errBox.textContent = "❌ " + e.message;
+      errBox.style.display = "block";
+      if (Object.keys(sessions).length) showPanel("output");
+      else showPanel("placeholder");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function clearAll() {
+    sessions = {};
+    document.getElementById("topicInput").value = "";
+    document.getElementById("contextInput").value = "";
+    document.getElementById("tabBar").innerHTML = "";
+    document.getElementById("outputArea").innerHTML = "";
+    document.getElementById("errorBox").style.display = "none";
+    showPanel("placeholder");
+  }
+
+  // ── Utilities ──
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function escAttr(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  }
+  function copyText(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = "Copied!";
+      setTimeout(() => btn.textContent = "Copy", 1800);
+    });
+  }
+
+  // init
+  showPanel("placeholder");
+</script>
+
+</body>
+</html>
